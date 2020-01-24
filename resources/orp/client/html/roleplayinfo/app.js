@@ -1,150 +1,96 @@
 const { createElement, render, Component } = preact;
 const h = createElement;
 
-const regex = new RegExp(
-    '^(([A-Z][a-z]+)(([ _][A-Z][a-z]+)|([ _][A-z]+[ _][A-Z][a-z]+)))$'
-);
+const regex = new RegExp('^([A-Z]?|[A-Z][a-z]*)$');
 
 // The main rendering function.
 class App extends Component {
     constructor(props) {
         super(props);
         this.state = {
-            date: false,
-            roleplayname: '',
-            currentYear: new Date().getFullYear(),
-            errors: {
-                name: false,
-                dob: false
-            }
+            firstNames: [],
+            lastNames: [],
+            firstFilter: '',
+            lastFilter: '',
+            firstName: '',
+            lastName: ''
         };
     }
 
-    nameChange(e) {
-        const result = regex.test(e.target.value);
+    componentDidMount() {
+        if ('alt' in window) {
+            alt.emit('roleplay:Ready');
+        }
+    }
 
-        if (!result) {
-            this.state.errors.name = true;
-            this.setState();
+    setFirstName(e) {
+        const firstName = e.target.value;
+        const nameCapitalized = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+
+        if (!regex.test(nameCapitalized) || nameCapitalized.length > 12) {
+            this.setState({ firstName: this.state.firstName });
             return;
         }
 
-        this.state.errors.name = false;
-        this.setState({ roleplayname: e.target.value });
+        this.setState({ firstName: nameCapitalized });
     }
 
-    dateChange(e) {
-        if (!this.dateValid(e.target.value)) {
-            this.state.errors.dob = true;
-            this.setState();
+    setLastName(e) {
+        const lastName = e.target.value;
+        const nameCapitalized = lastName.charAt(0).toUpperCase() + lastName.slice(1);
+
+        if (!regex.test(nameCapitalized) || nameCapitalized.length > 12) {
+            this.setState({ lastName: this.state.lastName });
             return;
         }
 
-        this.state.errors.dob = false;
-        this.setState({ date: e.target.value });
-    }
-
-    dateValid(date) {
-        date = new Date(date);
-
-        if (!date || isNaN(date.getTime())) return false;
-
-        if (date.getFullYear() <= 1920) return false;
-
-        if (date.getFullYear() > this.state.currentYear) return false;
-
-        return true;
+        this.setState({ lastName: nameCapitalized });
     }
 
     submit() {
-        const result = regex.test(this.state.roleplayname);
-        if (!result) {
-            this.state.errors.name = true;
-            this.setState();
-            return;
-        }
-
+        const name = `${this.state.firstName}_${this.state.lastName}`;
         if ('alt' in window) {
-            alt.emit('roleplay:SetInfo', {
-                name: this.state.roleplayname,
-                dob: this.state.date
-            });
+            alt.emit('roleplay:SetInfo', name);
         } else {
-            console.log([this.state.roleplayname, this.state.date]);
+            console.log(name);
         }
     }
 
     render() {
+        const firstName = this.state.firstName === '' ? 'Select' : this.state.firstName;
+        const lastName = this.state.lastName === '' ? 'Name' : this.state.lastName;
+        let allValid = firstName.length >= 2 && lastName.length >= 2 ? true : false;
+        allValid = firstName !== 'Select' && lastName !== 'Name' ? true : false;
+
         return h(
             'div',
             { id: 'app' },
             h(
                 'div',
-                { class: 'header' },
-                h('div', { class: 'logo' }, 'Set Roleplay Info')
-            ),
-            h('div', { class: 'animated flash container' }, ''), // @FIXME - Personally like it as a placeholder, lol
-            h(
-                'div',
-                {
-                    ref: this.wrapper,
-                    class: 'innerwrapper'
-                },
+                { class: 'wrapper' },
                 h(
                     'div',
-                    { class: 'container' },
-                    h(
-                        'div',
-                        {
-                            class: this.state.errors.name ? 'content error' : 'content',
-                            id: 'name'
-                        },
-                        h('p', {}, 'Roleplay Name'),
-                        h('input', {
-                            type: 'text',
-                            name: 'value',
-                            placerholder: 'value',
-                            oninput: this.nameChange.bind(this)
-                        }),
-                        h('span', {}, 'Username is not roleplay format. ie. Joe_Don')
-                    )
-                ),
-                h(
-                    'div',
-                    { class: 'container' },
-                    h(
-                        'div',
-                        {
-                            class: this.state.errors.dob ? 'content error' : 'content',
-                            id: 'dob'
-                        },
-                        h('p', {}, 'Date of Birth'),
-                        h('input', {
-                            type: 'date',
-                            name: 'value',
-                            placerholder: 'value',
-                            oninput: this.dateChange.bind(this)
-                        }),
+                    { class: 'current-name' },
+                    h('p', {}, `${firstName}_${lastName}`),
+                    h('input', {
+                        type: 'text',
+                        oninput: this.setFirstName.bind(this),
+                        value: this.state.firstName,
+                        placeholder: 'First Name'
+                    }),
+                    h('input', {
+                        type: 'text',
+                        oninput: this.setLastName.bind(this),
+                        value: this.state.lastName,
+                        placeholder: 'Last Name'
+                    }),
+                    allValid &&
                         h(
-                            'span',
-                            {},
-                            `Date is invalid. Date must be between 1920 and ${this.state.currentYear}`
+                            'button',
+                            { class: 'submit', onclick: this.submit.bind(this) },
+                            'Set Roleplay Name'
                         )
-                    )
-                ),
-                h(
-                    'div',
-                    { class: 'container' },
-                    !this.state.errors.name &&
-                        !this.state.errors.dob &&
-                        this.state.date &&
-                        h(
-                            'div',
-                            { class: 'center' },
-                            h('button', { onclick: this.submit.bind(this) }, 'Submit')
-                        )
-                ),
-                h('div', { class: 'container' })
+                )
             )
         );
     }
